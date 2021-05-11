@@ -104,6 +104,9 @@ export function activate(context: vscode.ExtensionContext) {
             },
             // externel data
             ...{
+                "mysql.util.github": () => {
+                    vscode.env.openExternal(vscode.Uri.parse('https://github.com/cweijan/vscode-database-client'));
+                },
                 "mysql.struct.diff": () => {
                     new DiffService().startDiff(serviceManager.provider);
                 },
@@ -178,6 +181,9 @@ export function activate(context: vscode.ExtensionContext) {
                     if (typeof sql != 'string') { sql = null; }
                     QueryUnit.runQuery(sql,ConnectionManager.tryGetConnection());
                 },
+                "mysql.runAllQuery": () => {
+                    QueryUnit.runQuery(null,ConnectionManager.tryGetConnection(),{runAll:true});
+                },
                 "mysql.query.switch": async (databaseOrConnectionNode: SchemaNode | ConnectionNode | EsConnectionNode | ESIndexNode) => {
                     if (databaseOrConnectionNode) {
                         await databaseOrConnectionNode.newQuery();
@@ -216,6 +222,9 @@ export function activate(context: vscode.ExtensionContext) {
                     tableNode.dropTable();
                 },
                 "mysql.table.source": (tableNode: TableNode) => {
+                    if (tableNode) { tableNode.showSource(); }
+                },
+                "mysql.view.source": (tableNode: TableNode) => {
                     if (tableNode) { tableNode.showSource(); }
                 },
                 "mysql.table.show": (tableNode: TableNode) => {

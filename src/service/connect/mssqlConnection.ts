@@ -1,4 +1,5 @@
 import { Connection, ConnectionConfig, Request } from "@/bin/tedious";
+import { ConnectionError } from 'tedious'
 import { Node } from "@/model/interface/node";
 import { EventEmitter } from "events";
 import { queryCallback } from "./connection";
@@ -16,17 +17,18 @@ export class MSSqlConnnection extends ConnectionPool<Connection>{
         this.config = {
             server: node.host,
             options: {
-                port:node.port,
+                port: node.instanceName?undefined:parseInt(node.port as any),
                 instanceName: node.instanceName,
                 trustServerCertificate: true,
                 database: node.database || undefined,
-                connectTimeout: node.connectTimeout? parseInt(node.connectTimeout as any): 5000,
-                requestTimeout: node.requestTimeout? parseInt(node.requestTimeout as any): 10000,
+                connectTimeout: node.connectTimeout ? parseInt(node.connectTimeout as any) : 5000,
+                requestTimeout: node.requestTimeout ? parseInt(node.requestTimeout as any) : 10000,
                 encrypt: node.encrypt
             },
             authentication: {
-                type: "default",
+                type: node.authType,
                 options: {
+                    domain: node.domain,
                     userName: node.user,
                     password: node.password,
                 }
@@ -101,13 +103,19 @@ export class MSSqlConnnection extends ConnectionPool<Connection>{
         return event;
     }
     connect(callback: (err: Error) => void): void {
-        const con = new Connection(this.config)
-        con.on("connect", err => {
-            callback(err)
-            if (!err) {
-                this.fill()
-            }
-        })
+        try {
+            const con = new Connection(this.config)
+            con.on("connect", err => {
+                callback(err)
+                if (!err) {
+                    this.fill()
+                }
+            }).on("error", err => {
+                callback(err)
+            })
+        } catch (error) {
+            callback(error)
+        }
     }
 
     protected newConnection(callback: (err: Error, connection: Connection) => void): void {

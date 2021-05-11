@@ -1,19 +1,19 @@
 import { Constants, ModelType } from "@/common/constants";
+import { Global } from "@/common/global";
 import { Util } from "@/common/util";
 import { ViewManager } from "@/common/viewManager";
 import { CommandKey, Node } from "@/model/interface/node";
 import { NodeUtil } from "@/model/nodeUtil";
 import * as path from "path";
 import * as vscode from "vscode";
-import { FolderNode } from "./folderNode";
+import { RedisFolderNode } from "./folderNode";
 import RedisBaseNode from "./redisBaseNode";
 
 export class RedisConnectionNode extends RedisBaseNode {
 
 
     contextValue = ModelType.REDIS_CONNECTION;
-    iconPath: string = path.join(Constants.RES_PATH, `image/redis_connection.png`);
-    iconDetailPath: string = path.join(Constants.RES_PATH, `image/code-terminal.svg`);
+    iconPath: string|vscode.ThemeIcon = path.join(Constants.RES_PATH, `image/redis_connection.png`);
 
     constructor(readonly key: string, readonly parent: Node) {
         super(key)
@@ -25,7 +25,8 @@ export class RedisConnectionNode extends RedisBaseNode {
         this.label = (this.usingSSH) ? `${this.ssh.host}@${this.ssh.port}` : `${this.host}@${this.port}`;
         if (this.disable) {
             this.collapsibleState = vscode.TreeItemCollapsibleState.None;
-            this.iconPath = path.join(Constants.RES_PATH, "icon/close.svg");
+            this.iconPath = Global.disableIcon;
+            this.label=this.label+" (closed)"
             return;
         }
     }
@@ -33,13 +34,16 @@ export class RedisConnectionNode extends RedisBaseNode {
     async getChildren(): Promise<RedisBaseNode[]> {
         const client = await this.getClient()
         let keys: string[] = await client.keys(this.pattern)
-        return FolderNode.buildChilds(this, keys)
+        return RedisFolderNode.buildChilds(this, keys)
     }
     async openTerminal(): Promise<any> {
         const client = await this.getClient()
         ViewManager.createWebviewPanel({
             splitView: true, title: `${this.host}@${this.port}`, preserveFocus: false,
-            iconPath: this.iconDetailPath, path: "app",
+            iconPath:  {
+                light: Util.getExtPath( "light", "terminal.png"),
+                dark: Util.getExtPath( "dark", "terminal.svg"),
+            }, path: "app",
             eventHandler: (handler) => {
                 handler.on("init", () => {
                     handler.emit("route", 'terminal')

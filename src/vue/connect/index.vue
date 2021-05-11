@@ -1,5 +1,5 @@
 <template>
-  <div class="container flex flex-col mx-auto">
+  <div class="connect-container flex flex-col mx-auto">
     <h1 class="py-4 text-2xl">Connect to Database Server</h1>
 
     <blockquote class="p-3 mb-2 panel error" v-if="connect.error">
@@ -56,19 +56,18 @@
           <input class="w-64 field__input" placeholder="The port of connection" required type="number" v-model="connectionOption.port" />
         </div>
       </section>
+
+      <section class="mb-2" v-if="connectionOption.dbType=='SqlServer'">
+        <div class="inline-block mr-10">
+          <label class="font-bold mr-5 inline-block w-32">Instance Name</label>
+          <input class="w-64 field__input" placeholder="Connection named instance" title="The instance name to connect to. The SQL Server Browser service must be running on the database server, and UDP port 1434 on the database server must be reachable.(no default)" v-model="connectionOption.instanceName" />
+        </div>
+        <span>
+          (If instance name is specified, the port config is ignored)
+        </span>
+      </section>
   
       <template v-if="connectionOption.dbType!='ElasticSearch'">
-  
-        <section class="mb-2">
-          <div class="inline-block mr-10" v-if="connectionOption.dbType!='Redis'">
-            <label class="font-bold mr-5 inline-block w-32"><span class="text-red-600 mr-1">*</span>Username</label>
-            <input class="w-64 field__input" placeholder="Username" required v-model="connectionOption.user" />
-          </div>
-          <div class="inline-block mr-10">
-            <label class="font-bold mr-5 inline-block w-32"><span class="text-red-600 mr-1">*</span>Password</label>
-            <input class="w-64 field__input" placeholder="Password" type="password" v-model="connectionOption.password" />
-          </div>
-        </section>
   
         <section class="mb-2" v-if="connectionOption.dbType=='SqlServer'">
           <div class="inline-block mr-10" v-if="connectionOption.dbType=='SqlServer'">
@@ -87,17 +86,21 @@
           </div>
         </section>
 
-        <section class="mb-2" v-if="connectionOption.dbType=='MySQL' || connectionOption.dbType=='PostgreSQL'">
+        <section class="mb-2" v-if="connectionOption.dbType=='SqlServer' && connectionOption.authType=='ntlm'">
           <div class="inline-block mr-10">
-            <label class="font-bold mr-5 inline-block w-18">Use SSL</label>
-            <el-switch v-model="connectionOption.useSsl"></el-switch>
+            <label class="font-bold mr-5 inline-block w-32"><span class="text-red-600 mr-1">*</span>Domain</label>
+            <input class="w-64 field__input" placeholder="Domain"  v-model="connectionOption.domain" />
           </div>
         </section>
 
-        <section class="mb-2" v-if="connectionOption.dbType=='SqlServer'">
+        <section class="mb-2">
+          <div class="inline-block mr-10" v-if="connectionOption.dbType!='Redis'">
+            <label class="font-bold mr-5 inline-block w-32"><span class="text-red-600 mr-1">*</span>Username</label>
+            <input class="w-64 field__input" placeholder="Username" required v-model="connectionOption.user" />
+          </div>
           <div class="inline-block mr-10">
-            <label class="font-bold mr-5 inline-block w-32">Instance Name</label>
-            <input class="w-64 field__input" placeholder="Connection named instance" title="The instance name to connect to. The SQL Server Browser service must be running on the database server, and UDP port 1434 on the database server must be reachable.(no default)" v-model="connectionOption.instanceName" />
+            <label class="font-bold mr-5 inline-block w-32"><span class="text-red-600 mr-1">*</span>Password</label>
+            <input class="w-64 field__input" placeholder="Password" type="password" v-model="connectionOption.password" />
           </div>
         </section>
   
@@ -137,23 +140,34 @@
       </template>
   
       <section class="flex items-center mb-2" v-if="connectionOption.dbType=='MySQL'">
-        <!-- <div class="inline-block mr-10">
-          <label class="font-bold mr-5 inline-block w-32">SSL Certificate</label>
-          <input class="w-64 field__input" placeholder="SSL Certificate Path" v-model="connectionOption.certPath" />
-        </div> -->
         <div class="inline-block mr-10">
           <label class="font-bold mr-5 inline-block w-32">Timezone</label>
           <input class="w-64 field__input" placeholder="+HH:MM" v-model="connectionOption.timezone" />
         </div>
       </section>
-  
+
       <section class="flex items-center mb-2">
         <div class="inline-block mr-10">
           <label class="mr-2 font-bold">SSH Tunnel</label>
           <el-switch v-model="connectionOption.usingSSH"></el-switch>
         </div>
+        <div class="inline-block mr-10" v-if="connectionOption.dbType=='MySQL' || connectionOption.dbType=='PostgreSQL'">
+          <label class="font-bold mr-5 inline-block w-18">Use SSL</label>
+          <el-switch v-model="connectionOption.useSSL"></el-switch>
+        </div>
       </section>
     </template>
+
+    <section class="flex items-center mb-2" v-if="connectionOption.useSSL">
+      <div class="inline-block mr-10">
+        <label class="font-bold mr-5 inline-block w-32">SSL Client Cert</label>
+        <input class="w-64 field__input" placeholder="SSL Client Certificate Path" v-model="connectionOption.clientCertPath" />
+      </div>
+      <div class="inline-block mr-10">
+        <label class="font-bold mr-5 inline-block w-32">SSL Client Key</label>
+        <input class="w-64 field__input" placeholder="SSL Client Key Path" v-model="connectionOption.clientKeyPath" />
+      </div>
+    </section>
 
     <div v-if="connectionOption.usingSSH || connectionOption.dbType=='SSH'">
       <section class="mb-2">
@@ -278,6 +292,7 @@ export default {
     vscodeEvent
       .on("edit", (node) => {
         this.editModel = true;
+        console.log(node)
         this.connectionOption = node;
       })
       .on("connect", (node) => {
@@ -369,6 +384,12 @@ export default {
 </script>
 
 <style scoped>
+
+.connect-container{
+  width: 100%;
+  max-width: 1300px;
+}
+
 .tab {
   border-bottom: 1px solid var(--vscode-dropdown-border);
   display: flex;

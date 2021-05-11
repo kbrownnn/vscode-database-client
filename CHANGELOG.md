@@ -1,10 +1,32 @@
 # CHANGELOG
 
-# 1.6.10 2021-5-7
+# 3.7.4 2021-5-11
+
+- Support config ssl connection.
+- Update ui operation icon.
+- Better sql server support.
+- Fix sqlserver cannot edit.
+- Fix sqlserver show object source fail.
+
+# 3.7.3 2021-5-9
+
+- Compatible icon with version 1.56.0 of vscode.
+- Fix include database not work.
+
+# 3.7.2 2021-5-8
+
+- Add cost time to result view.
+- Fix ssh connnection private key not persist.
+- Result show column type.
+
+# 3.7.0 2021-5-7
 
 - Fix struct sync open fail.
 - Mssql add  windows auth option.
 - Fix first data load fail.
+- Trigger refresh when create object.
+- Add run all sql comand.
+- Format postgresql timestamp show like pgadmin4.
 
 # 3.6.9 2021-4-28
 

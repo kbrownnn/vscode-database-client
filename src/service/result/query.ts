@@ -24,14 +24,11 @@ export class QueryParam<T> {
 export class QueryPage {
 
     private static exportService: ExportService = new ExportService()
-    private static statusBar: StatusBarItem = window.createStatusBarItem(StatusBarAlignment.Left, -200);
-    private static costStatusBar: StatusBarItem = window.createStatusBarItem(StatusBarAlignment.Left, -250);
 
     public static async send(queryParam: QueryParam<any>) {
 
         const dbOption: Node = queryParam.connection;
         await QueryPage.adaptData(queryParam);
-        this.updateStatusBar(queryParam);
         const type = this.keepSingle(queryParam);
 
         ViewManager.createWebviewPanel({
@@ -40,14 +37,6 @@ export class QueryPage {
             path: 'result', title: 'Query', type,
             iconPath: Global.getExtPath("resources", "icon", "query.svg"),
             eventHandler: async (handler) => {
-                handler.panel.onDidChangeViewState(e => {
-                    if (!e.webviewPanel.visible) {
-                        this.statusBar.hide()
-                        this.costStatusBar.hide()
-                    } else {
-                        this.updateStatusBar(queryParam);
-                    }
-                })
                 handler.on("init", () => {
                     if (queryParam.res?.table) {
                         handler.panel.title = `${queryParam.res.table}@${dbOption.schema}`
@@ -113,11 +102,11 @@ export class QueryPage {
                 }
                 break;
             case MessageType.MESSAGE_BLOCK:
-                queryParam.res.message = `EXECUTE SUCCESS:<br><br>&nbsp;&nbsp;${queryParam.res.sql}<br><br>CostTime : ${queryParam.res.costTime}ms`;
+                queryParam.res.message = `EXECUTE SUCCESS:<br><br>&nbsp;&nbsp;${queryParam.res.sql}`;
                 break;
             case MessageType.DML:
             case MessageType.DDL:
-                queryParam.res.message = `EXECUTE SUCCESS:<br><br>&nbsp;&nbsp;${queryParam.res.sql}<br><br>AffectedRows : ${queryParam.res.affectedRows}, CostTime : ${queryParam.res.costTime}ms`;
+                queryParam.res.message = `EXECUTE SUCCESS:<br><br>&nbsp;&nbsp;${queryParam.res.sql}<br><br>AffectedRows : ${queryParam.res.affectedRows}`;
                 break;
             case MessageType.ERROR:
                 queryParam.res.message = `EXECUTE FAIL:<br><br>&nbsp;&nbsp;${queryParam.res.sql}<br><br>Message :<br><br>&nbsp;&nbsp;${queryParam.res.message}`;
@@ -135,17 +124,6 @@ export class QueryPage {
             }
         }
         return queryParam.queryOption.viewId;
-    }
-
-    private static updateStatusBar(queryParam: QueryParam<any>) {
-        if (queryParam.type != MessageType.RUN && queryParam.res.costTime) {
-            this.costStatusBar.text = `$(scrollbar-button-right) ${queryParam.res.costTime}ms`;
-            this.costStatusBar.show();
-        }
-        if (queryParam.type == MessageType.DATA) {
-            this.statusBar.text = `$(list-flat) ${queryParam.res.table}       Row ${queryParam.res.data?.length}, Col ${queryParam.res.fields?.length}`;
-            this.statusBar.show();
-        }
     }
 
     private static isActiveSql(option: QueryOption): boolean {
@@ -190,17 +168,24 @@ export class QueryPage {
             database = fields[0].schema || fields[0].db;
         }
 
+        if(queryParam.connection.dbType==DatabaseType.MSSQL && tableName.indexOf(".")!=-1){
+            tableName=tableName.split(".")[1]
+        }
+
         const tableNode = queryParam.connection.getByRegion(tableName)
         if (tableNode) {
             let primaryKey: string;
+            let primaryKeyList=[];
             const columnList = (await tableNode.getChildren()).map((columnNode: ColumnNode) => {
                 if (columnNode.isPrimaryKey) {
                     primaryKey = columnNode.column.name;
+                    primaryKeyList.push(columnNode.column)
                 }
                 return columnNode.column;
             });
             queryParam.res.primaryKey = primaryKey;
             queryParam.res.columnList = columnList;
+            queryParam.res.primaryKeyList = primaryKeyList;
         }
         queryParam.res.tableCount = sqlList.length;
         queryParam.res.table = tableName;
