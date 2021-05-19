@@ -1,7 +1,6 @@
 import { Global } from "@/common/global";
-import * as path from "path";
 import * as vscode from "vscode";
-import { Constants, DatabaseType, ModelType } from "../../common/constants";
+import { DatabaseType, ModelType } from "../../common/constants";
 import { Util } from '../../common/util';
 import { DbTreeDataProvider } from '../../provider/treeDataProvider';
 import { DatabaseCache } from "../../service/common/databaseCache";
@@ -14,25 +13,39 @@ import { ProcedureGroup } from "../main/procedureGroup";
 import { TableGroup } from "../main/tableGroup";
 import { TriggerGroup } from "../main/triggerGroup";
 import { ViewGroup } from "../main/viewGroup";
+import { MongoTableGroup } from "../mongo/mongoTableGroup";
 import { QueryGroup } from "../query/queryGroup";
 
 export class SchemaNode extends Node implements CopyAble {
 
 
     public contextValue: string = ModelType.SCHEMA;
-    public iconPath: string = path.join(Constants.RES_PATH, "icon/database.svg");
     constructor(public schema: string, readonly parent: Node) {
         super(schema)
         this.init(this.parent)
         this.cacheSelf()
+        this.iconPath = this.getIcon()
         const lcp = ConnectionManager.activeNode;
         if (this.isActive(lcp) && (lcp.database == this.database) && (lcp.schema == this.schema)) {
-            this.iconPath = path.join(Constants.RES_PATH, "icon/database-active.svg");
+            this.iconPath=this.getIcon(true)
             this.description = `Active`
         }
     }
 
+    private getIcon(active?: boolean): vscode.ThemeIcon {
+
+        const iconId = this.dbType == DatabaseType.MYSQL ? "database" : "symbol-struct"
+        if (active && Util.supportColorIcon()) {
+            return new vscode.ThemeIcon(iconId, new vscode.ThemeColor('charts.blue'));
+        }
+        return new vscode.ThemeIcon(iconId);
+    }
+
     public getChildren(): Promise<Node[]> | Node[] {
+
+        if(this.dbType==DatabaseType.MONGO_DB){
+            return [ new MongoTableGroup(this) ]
+        }
 
         let childs: Node[] = [new TableGroup(this)];
 

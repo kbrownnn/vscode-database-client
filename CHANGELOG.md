@@ -1,5 +1,36 @@
 # CHANGELOG
 
+# 3.8.3 2021-5-18
+
+- Support connect to MongoDB.
+- Fix postgresql duplicate tables.
+
+# 3.8.2 2021-5-15
+
+- Connection keep origin position when edit.
+- Support export SQLite data and struct.
+- Fix possible connection delete bug.
+
+# 3.8.0 2021-5-14
+
+- Support sqlite.
+- SSH support download folder.
+
+# 3.7.6 2021-5-12
+
+- Update ui operation icon.
+- Set ssh terminal as full height.
+- Support open mysql and postgresql terminal.
+- Fix some legacy bugs.
+
+# 3.7.4 2021-5-11
+
+- Support config ssl connection.
+- Update ui operation icon.
+- Better sql server support.
+- Fix sqlserver cannot edit.
+- Fix sqlserver show object source fail.
+
 # 3.7.3 2021-5-9
 
 - Compatible icon with version 1.56.0 of vscode.

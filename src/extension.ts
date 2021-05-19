@@ -104,6 +104,9 @@ export function activate(context: vscode.ExtensionContext) {
             },
             // externel data
             ...{
+                "mysql.util.github": () => {
+                    vscode.env.openExternal(vscode.Uri.parse('https://github.com/cweijan/vscode-database-client'));
+                },
                 "mysql.struct.diff": () => {
                     new DiffService().startDiff(serviceManager.provider);
                 },
@@ -123,7 +126,6 @@ export function activate(context: vscode.ExtensionContext) {
             },
             // ssh
             ...{
-                'mysql.ssh.connection.terminal': (parentNode: SSHConnectionNode) => parentNode.openTerminal(),
                 'mysql.ssh.folder.new': (parentNode: SSHConnectionNode) => parentNode.newFolder(),
                 'mysql.ssh.file.new': (parentNode: SSHConnectionNode) => parentNode.newFile(),
                 'mysql.ssh.host.copy': (parentNode: SSHConnectionNode) => parentNode.copyIP(),
@@ -203,7 +205,7 @@ export function activate(context: vscode.ExtensionContext) {
             // redis
             ...{
                 "mysql.redis.connection.status": (connectionNode: RedisConnectionNode) => connectionNode.showStatus(),
-                "mysql.redis.connection.terminal": (connectionNode: RedisConnectionNode) => connectionNode.openTerminal(),
+                "mysql.connection.terminal": (node: Node) => node.openTerminal(),
                 "mysql.redis.key.detail": (keyNode: KeyNode) => keyNode.detail(),
                 "mysql.redis.key.del": (keyNode: KeyNode) => keyNode.delete(),
             },
@@ -219,6 +221,9 @@ export function activate(context: vscode.ExtensionContext) {
                     tableNode.dropTable();
                 },
                 "mysql.table.source": (tableNode: TableNode) => {
+                    if (tableNode) { tableNode.showSource(); }
+                },
+                "mysql.view.source": (tableNode: TableNode) => {
                     if (tableNode) { tableNode.showSource(); }
                 },
                 "mysql.table.show": (tableNode: TableNode) => {

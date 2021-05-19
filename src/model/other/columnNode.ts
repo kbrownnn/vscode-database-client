@@ -1,13 +1,12 @@
+import { ColumnMeta } from "@/common/typeDef";
 import { MockRunner } from "@/service/mock/mockRunner";
-import * as path from "path";
 import * as vscode from "vscode";
-import { Constants, DatabaseType, ModelType, Template } from "../../common/constants";
+import { DatabaseType, ModelType, Template } from "../../common/constants";
 import { Util } from "../../common/util";
 import { DbTreeDataProvider } from "../../provider/treeDataProvider";
 import { QueryUnit } from "../../service/queryUnit";
 import { CopyAble } from "../interface/copyAble";
 import { Node } from "../interface/node";
-import { ColumnMeta } from "@/common/typeDef";
 
 export class ColumnNode extends Node implements CopyAble {
     public type: string;
@@ -17,7 +16,15 @@ export class ColumnNode extends Node implements CopyAble {
         super(column.name)
         this.init(parent)
         this.buildInfo()
-        this.iconPath = path.join(Constants.RES_PATH, this.isPrimaryKey ? "icon/b_primary.png" : "icon/b_props.png");
+        if (this.isPrimaryKey) {
+            if(Util.supportColorIcon()){
+                this.iconPath = new vscode.ThemeIcon("key", new vscode.ThemeColor('charts.yellow'));
+            }else{
+                this.iconPath = new vscode.ThemeIcon("key");
+            }
+        } else {
+            this.iconPath = new vscode.ThemeIcon("symbol-field");
+        }
         this.command = {
             command: "mysql.column.update",
             title: "Update Column Statement",
@@ -29,13 +36,22 @@ export class ColumnNode extends Node implements CopyAble {
     }
 
     private buildInfo() {
+        if(!this.column.simpleType){
+            this.column.simpleType=this.column.type
+        }
+        // sqlite
+        if(this.column.pk=='1'){
+            this.isPrimaryKey=true;
+            MockRunner.primaryKeyMap[this.parent.uid] = this.column.name
+            this.column.isPrimary=true;
+        }
         if (this.column.extra == 'auto_increment') {
             this.column.isAutoIncrement = true;
         }
         this.column.isNotNull = this.column.nullable != 'YES'
         this.type = `${this.column.type}`
-        this.description = `${this.column.type} ${this.column.comment}`
-        this.tooltip=`${this.label} ${this.column.comment}
+        this.description = `${this.column.type} ${this.column.comment||''}`
+        this.tooltip = `${this.label} ${this.column.comment}
 ${this.column.type} ${this.column.nullable == "YES" ? "Nullable" : "NotNull"}`
         const columnKey: string = this.column.key;
         switch (columnKey) {

@@ -1,3 +1,4 @@
+import { Console } from "@/common/Console";
 import { Global } from "@/common/global";
 import * as path from "path";
 import * as vscode from "vscode";
@@ -9,6 +10,8 @@ import { DatabaseCache } from "../../service/common/databaseCache";
 import { ConnectionManager } from "../../service/connectionManager";
 import { CopyAble } from "../interface/copyAble";
 import { CommandKey, Node } from "../interface/node";
+import { TableGroup } from "../main/tableGroup";
+import { ViewGroup } from "../main/viewGroup";
 import { CatalogNode } from "./catalogNode";
 import { SchemaNode } from "./schemaNode";
 import { UserGroup } from "./userGroup";
@@ -18,37 +21,52 @@ import { UserGroup } from "./userGroup";
  */
 export class ConnectionNode extends Node implements CopyAble {
 
-    public iconPath: string = path.join(Constants.RES_PATH, "icon/server.png");
+    public iconPath: string | vscode.ThemeIcon = path.join(Constants.RES_PATH, "icon/mysql.svg");
     public contextValue: string = ModelType.CONNECTION;
     constructor(readonly key: string, readonly parent: Node) {
         super(key)
         this.init(parent)
-        this.label = (this.usingSSH) ? `${this.ssh.host}@${this.ssh.port}` : `${this.host}@${this.port}`;
+        this.label = (this.usingSSH) ? `${this.ssh.host}@${this.ssh.port}` : `${this.host}@${this.instanceName ? this.instanceName : this.port}`;
+        if(this.dbType==DatabaseType.SQLITE){
+            this.label=this.dbPath;
+        }
         this.cacheSelf()
         if (parent.name) {
             this.description = parent.name
             this.name = parent.name
         }
-        if (this.disable) {
-            this.collapsibleState = vscode.TreeItemCollapsibleState.None;
-            this.iconPath = path.join(Constants.RES_PATH, "icon/close.svg");
-            return;
-        }
-        const lcp = ConnectionManager.activeNode;
-        if (this.isActive(lcp)) {
-            this.iconPath = path.join(Constants.RES_PATH, "icon/connection-active.svg");
-            this.description = `${parent.name ? parent.name + " " : ""}Active`
-            return;
-        }
+        // https://www.iloveimg.com/zh-cn/resize-image/resize-svg
         if (this.dbType == DatabaseType.PG) {
             this.iconPath = path.join(Constants.RES_PATH, "icon/pg_server.svg");
         } else if (this.dbType == DatabaseType.MSSQL) {
             this.iconPath = path.join(Constants.RES_PATH, "icon/mssql_server.png");
+        }else if(this.dbType==DatabaseType.SQLITE){
+            this.iconPath = path.join(Constants.RES_PATH, "icon/sqlite-icon.svg");
+        }else if(this.dbType==DatabaseType.MONGO_DB){
+            this.iconPath = path.join(Constants.RES_PATH, "icon/mongodb-icon.svg");
         }
-        this.getChildren()
+        if (this.disable) {
+            this.collapsibleState = vscode.TreeItemCollapsibleState.None;
+            this.description = (this.description||'') + " closed"
+            return;
+        }
+        const lcp = ConnectionManager.activeNode;
+        if (lcp && lcp.getConnectId().includes(this.getConnectId())) {
+            this.description = `${parent.name ? parent.name + " " : ""}Active`
+        }
+        try {
+            this.getChildren()
+        } catch (error) {
+            Console.log(error)
+        }
     }
 
     public async getChildren(isRresh: boolean = false): Promise<Node[]> {
+
+
+        if(this.dbType==DatabaseType.SQLITE){
+            return [new TableGroup(this),new ViewGroup(this)];
+        }
 
         let dbNodes = DatabaseCache.getSchemaListOfConnection(this.uid);
         if (dbNodes && !isRresh) {
@@ -70,7 +88,7 @@ export class ConnectionNode extends Node implements CopyAble {
                 const includeDatabaseArray = this.includeDatabases?.toLowerCase()?.split(",")
                 const usingInclude = this.includeDatabases && includeDatabaseArray && includeDatabaseArray.length >= 1;
                 const databaseNodes = databases.filter((db) => {
-                    if (usingInclude  && !db.schema) {
+                    if (usingInclude && !db.schema) {
                         return includeDatabaseArray.indexOf(db.Database.toLocaleLowerCase()) != -1;
                     }
                     return true;
@@ -97,9 +115,9 @@ export class ConnectionNode extends Node implements CopyAble {
 
         await FileManager.show(`${new Date().getTime()}.sql`);
         let childMap = {};
-        const dbNameList = (await this.getChildren()).filter((databaseNode) => !(databaseNode instanceof UserGroup)).map((databaseNode) => {
+        const dbNameList = (await this.getChildren()).filter((databaseNode) => (databaseNode instanceof SchemaNode||databaseNode instanceof CatalogNode)).map((databaseNode) => {
             childMap[databaseNode.uid] = databaseNode
-            return databaseNode.schema
+            return this.dbType == DatabaseType.MYSQL ? databaseNode.schema : databaseNode.database;
         });
         let dbName: string;
         if (dbNameList.length == 1) {
@@ -108,9 +126,7 @@ export class ConnectionNode extends Node implements CopyAble {
         if (dbNameList.length > 1) {
             dbName = await vscode.window.showQuickPick(dbNameList, { placeHolder: "active database" })
         }
-        if (dbName) {
-            ConnectionManager.changeActive(childMap[`${this.getConnectId()}_${dbName}`])
-        }
+        ConnectionManager.changeActive(dbName ? childMap[`${this.getConnectId()}@${dbName}`] : this)
 
     }
 
@@ -127,7 +143,7 @@ export class ConnectionNode extends Node implements CopyAble {
 
     public async deleteConnection(context: vscode.ExtensionContext) {
 
-        Util.confirm(`Are you want to Delete Connection ${this.label} ? `, async () => {
+        Util.confirm(`Are you want to delete Connection ${this.label} ? `, async () => {
             this.indent({ command: CommandKey.delete })
         })
 

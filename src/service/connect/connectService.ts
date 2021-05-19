@@ -8,16 +8,14 @@ import { Global } from "../../common/global";
 import { ConnectionManager } from "@/service/connectionManager";
 import { DatabaseType } from "@/common/constants";
 import { ClientManager } from "../ssh/clientManager";
+import { window } from "vscode";
 
 export class ConnectService {
 
     public async openConnect(provider: DbTreeDataProvider, connectionNode?: ConnectionNode) {
         let node: any;
         if (connectionNode) {
-            if (connectionNode.global == null) {
-                connectionNode.global = true
-            }
-            node = { ...NodeUtil.removeParent(connectionNode), isGlobal: connectionNode.global !== false }
+            node = { ...NodeUtil.removeParent(connectionNode), isGlobal: connectionNode.global }
             if (node.ssh) {
                 node.ssh.tunnelPort = null
                 if (!node.ssh.algorithms) {
@@ -27,7 +25,7 @@ export class ConnectService {
         }
         ViewManager.createWebviewPanel({
             path: "app", title: "connect",
-            splitView: false, iconPath: Global.getExtPath("resources", "icon", "add.svg"),
+            splitView: false, iconPath: Global.getExtPath("resources", "icon", "connection.svg"),
             eventHandler: (handler) => {
                 handler.on("init", () => {
                     handler.emit('route', 'connect')
@@ -53,6 +51,13 @@ export class ConnectService {
                     }
                 }).on("close", () => {
                     handler.panel.dispose()
+                }).on("choose",({event,filters})=>{
+                    window.showOpenDialog({filters}).then((uris)=>{
+                        const uri=uris[0]
+                        if(uri){
+                            handler.emit("choose",{event,path:uri.fsPath})
+                        }
+                    })
                 })
             }
         });

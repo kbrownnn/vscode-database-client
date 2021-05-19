@@ -2,13 +2,15 @@ import { Constants, ModelType } from "@/common/constants";
 import { Util } from "@/common/util";
 import { Node } from "@/model/interface/node";
 import * as path from "path";
+import { ThemeColor, ThemeIcon } from "vscode";
 import KeyNode from "./keyNode";
 import RedisBaseNode from "./redisBaseNode";
 
 
-export class FolderNode extends RedisBaseNode {
+export class RedisFolderNode extends RedisBaseNode {
     contextValue = ModelType.REDIS_FOLDER;
-    readonly iconPath = path.join(Constants.RES_PATH, `image/folder.svg`);
+    readonly iconPath = path.join(Constants.RES_PATH, `image/redis_folder.svg`);
+    // readonly iconPath =new ThemeIcon("folder")
     constructor(readonly label: string, readonly childens: string[], readonly parent: RedisBaseNode) {
         super(label)
         this.init(parent)
@@ -17,7 +19,7 @@ export class FolderNode extends RedisBaseNode {
     }
 
     public async getChildren() {
-        return FolderNode.buildChilds(this, this.childens)
+        return RedisFolderNode.buildChilds(this, this.childens)
     }
 
     public static buildChilds(parent: RedisBaseNode, keys: string[]) {
@@ -30,7 +32,7 @@ export class FolderNode extends RedisBaseNode {
 
         return Object.keys(prefixMap).map((prefix: string) => {
             if (prefixMap[prefix].length > 1) {
-                return new FolderNode(prefix, prefixMap[prefix], parent)
+                return new RedisFolderNode(prefix, prefixMap[prefix], parent)
             } else {
                 return new KeyNode(prefixMap[prefix][0], prefix, parent)
             }

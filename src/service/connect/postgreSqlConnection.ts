@@ -1,24 +1,30 @@
+import * as fs from "fs";
 import { Node } from "@/model/interface/node";
-import { Client, QueryArrayResult, types } from "pg";
+import { Client, ClientConfig, QueryArrayResult, types } from "pg";
 import { IConnection, queryCallback } from "./connection";
 import { EventEmitter } from "events";
-import * as sqlstring from 'sqlstring';
 
 /**
  * https://www.npmjs.com/package/pg
  */
 export class PostgreSqlConnection extends IConnection {
     private client: Client;
-    constructor(opt: Node) {
+    constructor(node: Node) {
         super()
-        const config = {
-            host: opt.host, port: opt.port,
-            user: opt.user, password: opt.password,
-            database: opt.database,
-            connectionTimeoutMillis: opt.connectTimeout || 5000,
-            statement_timeout: opt.requestTimeout || 10000,
-            ssl:opt.useSsl===true
-        };
+        let config = {
+            host: node.host, port: node.port,
+            user: node.user, password: node.password,
+            database: node.database,
+            connectionTimeoutMillis: node.connectTimeout || 5000,
+            statement_timeout: node.requestTimeout || 10000,
+        } as ClientConfig;
+        if (node.useSSL) {
+            config.ssl = {
+                rejectUnauthorized: false,
+                cert: (node.clientCertPath) ? fs.readFileSync(node.clientCertPath) : null,
+                key: (node.clientKeyPath) ? fs.readFileSync(node.clientKeyPath) : null,
+            }
+        }
         this.client = new Client(config);
 
     }
@@ -36,7 +42,7 @@ export class PostgreSqlConnection extends IConnection {
         const event = new EventEmitter()
         this.client.query(sql, (err, res) => {
             if (err) {
-                callback(err)
+                if(callback) callback(err)
                 this.end()
                 event.emit("error", err.message)
             } else if (!callback) {
@@ -45,7 +51,7 @@ export class PostgreSqlConnection extends IConnection {
                 }
                 for (let i = 1; i <= res.rows.length; i++) {
                     const row = res.rows[i - 1];
-                    event.emit("result", this.convertToDump(res.fields, row), res.rows.length == i)
+                    event.emit("result", this.convertToDump(row), res.rows.length == i)
                 }
             } else {
                 if (res instanceof Array) {
@@ -57,17 +63,7 @@ export class PostgreSqlConnection extends IConnection {
         })
         return event;
     }
-    convertToDump(fields: import("pg").FieldDef[], row: any): any {
-        for (const key in row) {
-            const element = row[key];
-            if (!element) {
-                row[key] = 'NULL'
-            } else {
-                row[key] = sqlstring.escape(element)
-            }
-        }
-        return row;
-    }
+    
     adaptResult(res: QueryArrayResult<any>) {
         if (res.command != 'SELECT' && res.command != 'SHOW') {
             return { affectedRows: res.rowCount }

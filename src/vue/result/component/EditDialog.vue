@@ -1,5 +1,5 @@
 <template>
-  <el-dialog ref="editDialog" :title="editorTilte" :visible.sync="visible" width="60%" top="3vh" size="mini">
+  <el-dialog ref="editDialog" :title="editorTilte" :visible.sync="visible" width="60%" top="3vh" size="mini" :closeOnClickModal="false">
     <el-form ref="infoForm" :model="editModel" :inline="true">
       <el-form-item :prop="column.name" :key="column.name" v-for="column in columnList" size="mini">
         <template>
@@ -31,7 +31,7 @@ import { wrapByDb } from "@/common/wrapper";
 export default {
   mixins: [util],
   components: { CellEditor },
-  props: ["dbType", "table", "primaryKey", "columnList"],
+  props: ["dbType","database", "table", "primaryKey","primaryKeyList", "columnList"],
   data() {
     return {
       model: "insert",
@@ -86,6 +86,9 @@ export default {
       if (this.dbType == "ElasticSearch") {
         this.confirmInsertEs();
         return;
+      }else if (this.dbType == "MongoDB") {
+        this.confirmInsertMongo();
+        return;
       }
       let columns = "";
       let values = "";
@@ -111,12 +114,14 @@ export default {
     buildUpdateSql(currentNew, oldRow) {
        if (this.dbType == "ElasticSearch") {
         return this.confirmUpdateEs(currentNew);
+      }else if (this.dbType == "MongoDB") {
+        return this.confirmUpdateMongo(currentNew,oldRow);
       }
        if (!this.primaryKey) {
         this.$message.error("This table has not primary key, cannot update!");
         throw new Error("This table has not primary key, cannot update!")
       }
-      const primary = oldRow[this.primaryKey];
+      
       let change = "";
       for (const key in currentNew) {
         if (this.getTypeByColumn(key) == null) continue;
@@ -132,9 +137,20 @@ export default {
       if (!change) {
         return "";
       }
-      return `UPDATE ${this.table} SET ${change.replace(/,$/, "")} WHERE ${
-        this.primaryKey
-      }=${this.wrapQuote(this.getTypeByColumn(this.primaryKey), primary)};`;
+
+      let updateSql=`UPDATE ${this.table} SET ${change.replace(/,$/, "")}`;
+      for (let i = 0; i < this.primaryKeyList.length; i++) {
+        const pk = this.primaryKeyList[i];
+        const pkName = pk.name;
+        const pkType = pk.simpleType || pk.type;
+        if(i==0){
+          updateSql=`${updateSql} WHERE ${ pkName }=${this.wrapQuote(pkType, oldRow[pkName])}`
+        }else{
+          updateSql=`${updateSql} AND ${ pkName }=${this.wrapQuote(pkType, oldRow[pkName])}`
+        }
+      }
+      console.log(updateSql)
+      return updateSql;
     },
     confirmUpdate(row, oldRow) {
       if (!oldRow) {
@@ -154,6 +170,21 @@ export default {
       this.$emit(
         "execute",
         `POST /${this.table}/_doc\n` + JSON.stringify(this.editModel)
+      );
+    },
+    confirmInsertMongo() {
+      this.$emit(
+        "execute",
+        `db('${this.database}').collection("${this.table}").insertOne(${JSON.stringify(this.editModel)})\n`
+      );
+    },
+    confirmUpdateMongo(row, oldRow) {
+      const temp=Object.assign({},row)
+      delete temp['_id']
+      const id=oldRow._id.indexOf("ObjectID") != -1 ?oldRow._id:`'${oldRow._id}'`
+      this.$emit(
+        "execute",
+        `db('${this.database}').collection("${this.table}").updateOne({_id:${id}},{ $set:${JSON.stringify(temp)}})\n`
       );
     },
     confirmUpdateEs(row) {

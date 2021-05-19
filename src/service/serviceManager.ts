@@ -1,4 +1,5 @@
 import { CacheKey, DatabaseType } from "@/common/constants";
+import { EsIndexGroup } from "@/model/es/model/esIndexGroupNode";
 import { SqlCodeLensProvider } from "@/provider/sqlCodeLensProvider";
 import * as vscode from "vscode";
 import { ExtensionContext } from "vscode";
@@ -15,6 +16,7 @@ import { ViewManager } from "../common/viewManager";
 import { DatabaseCache } from "./common/databaseCache";
 import { HistoryRecorder } from "./common/historyRecorder";
 import { EsDialect } from "./dialect/esDialect";
+import { MongoDialect } from "./dialect/mongoDialect";
 import { MssqlDIalect } from "./dialect/mssqlDIalect";
 import { MysqlDialect } from "./dialect/mysqlDialect";
 import { PostgreSqlDialect } from "./dialect/postgreSqlDialect";
@@ -32,6 +34,7 @@ import { PostgreSqlPageService } from "./page/postgreSqlPageService";
 import { MysqlSettingService } from "./setting/MysqlSettingService";
 import { SettingService } from "./setting/settingService";
 import ConnectionProvider from "@/model/ssh/connectionProvider";
+import { SqliTeDialect } from "./dialect/sqliteDialect";
 
 export class ServiceManager {
 
@@ -74,7 +77,7 @@ export class ServiceManager {
 
 
     private initTreeView() {
-        this.provider = new DbTreeDataProvider(this.context,CacheKey.ConectionsKey);
+        this.provider = new DbTreeDataProvider(this.context, CacheKey.ConectionsKey);
         const treeview = vscode.window.createTreeView("github.cweijan.mysql", {
             treeDataProvider: this.provider,
         });
@@ -88,7 +91,7 @@ export class ServiceManager {
     }
 
     private initTreeProvider() {
-        this.nosqlProvider = new DbTreeDataProvider(this.context,CacheKey.NOSQL_CONNECTION);
+        this.nosqlProvider = new DbTreeDataProvider(this.context, CacheKey.NOSQL_CONNECTION);
         const treeview = vscode.window.createTreeView("github.cweijan.nosql", {
             treeDataProvider: this.nosqlProvider,
         });
@@ -124,10 +127,14 @@ export class ServiceManager {
         switch (dbType) {
             case DatabaseType.MSSQL:
                 return new MssqlDIalect()
+            case DatabaseType.SQLITE:
+                return new SqliTeDialect()
             case DatabaseType.PG:
                 return new PostgreSqlDialect();
             case DatabaseType.ES:
                 return new EsDialect();
+            case DatabaseType.MONGO_DB:
+                return new MongoDialect();
         }
         return new MysqlDialect()
     }

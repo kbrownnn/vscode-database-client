@@ -14,6 +14,7 @@ export class DataResponse {
     public costTime: number;
     public primaryKey: string;
     public columnList: ColumnMeta[];
+    public primaryKeyList: ColumnMeta[];
     public database?: string;
     public table: string | null;
     public data: any[];
@@ -34,6 +35,7 @@ export class DMLResponse {
     public costTime: number;
     public message?: string;
     public affectedRows: number;
+    public isInsert: boolean;
 }
 
 /**

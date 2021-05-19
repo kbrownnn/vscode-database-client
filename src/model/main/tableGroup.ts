@@ -1,6 +1,5 @@
-import * as path from "path";
-import { Constants, ModelType } from "../../common/constants";
-import { DatabaseCache } from "../../service/common/databaseCache";
+import { ThemeIcon } from "vscode";
+import { ModelType } from "../../common/constants";
 import { QueryUnit } from "../../service/queryUnit";
 import { Node } from "../interface/node";
 import { InfoNode } from "../other/infoNode";
@@ -8,10 +7,10 @@ import { TableNode } from "./tableNode";
 
 export class TableGroup extends Node {
 
-    public iconPath: string = path.join(Constants.RES_PATH, "icon/table.svg");
+    public iconPath=new ThemeIcon("list-flat")
     public contextValue: string = ModelType.TABLE_GROUP;
     constructor(readonly parent: Node) {
-        super("TABLE")
+        super("Table")
         this.init(parent)
     }
 

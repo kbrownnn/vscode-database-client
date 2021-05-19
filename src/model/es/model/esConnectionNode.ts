@@ -4,7 +4,7 @@ import { DbTreeDataProvider } from "@/provider/treeDataProvider";
 import { QueryUnit } from "@/service/queryUnit";
 import * as compareVersions from 'compare-versions';
 import * as path from "path";
-import { ExtensionContext, TreeItemCollapsibleState } from "vscode";
+import { ExtensionContext, ThemeIcon, TreeItemCollapsibleState } from "vscode";
 import { Constants, ModelType } from "../../../common/constants";
 import { ConnectionManager } from "../../../service/connectionManager";
 import { CommandKey, Node } from "../../interface/node";
@@ -18,7 +18,7 @@ const extPackage=require("@/../package.json")
 export class EsConnectionNode extends Node {
 
     private static versionMap = {}
-    public iconPath: string = path.join(Constants.RES_PATH, "icon/es.png");
+    public iconPath: string|ThemeIcon = path.join(Constants.RES_PATH, "icon/elasticsearch.svg");
     public contextValue: string = ModelType.ES_CONNECTION;
     constructor(readonly key: string, readonly parent: Node) {
         super(key)
@@ -34,12 +34,8 @@ export class EsConnectionNode extends Node {
 
         if (this.disable) {
             this.collapsibleState = TreeItemCollapsibleState.None;
-            this.iconPath = path.join(Constants.RES_PATH, "icon/close.svg");
+            this.description=(this.description||'')+" closed"
             return;
-        }
-
-        if (this.isActive(lcp)) {
-            this.iconPath = path.join(Constants.RES_PATH, "icon/connection-active.svg");
         }
 
         if (EsConnectionNode.versionMap[this.label]) {
@@ -52,6 +48,10 @@ export class EsConnectionNode extends Node {
             }).catch(err=>{
                 console.log(err)
             })
+        }
+
+        if (this.isActive(lcp)) {
+            this.description = `${this.description}   Active`;
         }
 
     }

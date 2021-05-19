@@ -1,28 +1,25 @@
+import { ColumnMeta, TableMeta } from "@/common/typeDef";
 import { Hanlder, ViewManager } from "@/common/viewManager";
-import * as path from "path";
 import * as vscode from "vscode";
-import { ConfigKey, Constants, DatabaseType, ModelType, Template } from "../../common/constants";
+import { ConfigKey, DatabaseType, ModelType, Template } from "../../common/constants";
 import { Global } from "../../common/global";
 import { Util } from "../../common/util";
 import { DbTreeDataProvider } from "../../provider/treeDataProvider";
-import { DatabaseCache } from "../../service/common/databaseCache";
 import { ConnectionManager } from "../../service/connectionManager";
 import { MockRunner } from "../../service/mock/mockRunner";
 import { QueryUnit } from "../../service/queryUnit";
 import { CopyAble } from "../interface/copyAble";
 import { Node } from "../interface/node";
-import { ColumnMeta, TableMeta } from "@/common/typeDef";
 import { ColumnNode } from "../other/columnNode";
 import { InfoNode } from "../other/infoNode";
-const prettyBytes = require("pretty-bytes")
 
 export class TableNode extends Node implements CopyAble {
 
-    public iconPath: string = path.join(Constants.RES_PATH, "icon/table.svg");
+    public iconPath = new vscode.ThemeIcon("split-horizontal")
     public contextValue: string = ModelType.TABLE;
     public table: string;
 
-    constructor(meta: TableMeta, readonly parent: Node) {
+    constructor(readonly meta: TableMeta, readonly parent: Node) {
         super(`${meta.name}`)
         this.table = meta.name
         this.description = `${meta.comment || ''} ${(meta.rows && meta.rows != '0') ? `Rows ${meta.rows}` : ''}`
@@ -61,9 +58,12 @@ export class TableNode extends Node implements CopyAble {
 
     public async showSource(open = true) {
         let sql: string;
-        if (this.dbType == DatabaseType.MYSQL || !this.dbType) {
+        if (this.dbType == DatabaseType.MYSQL || this.dbType == DatabaseType.SQLITE) {
             const sourceResule = await this.execute<any[]>(this.dialect.showTableSource(this.schema, this.table))
             sql = sourceResule[0]['Create Table'];
+            if (this.dbType == DatabaseType.SQLITE) {
+                sql = sql.replace(/\\n/g, '\n');
+            }
         } else {
             const childs = await this.getChildren()
             let table = this.table;
@@ -105,7 +105,8 @@ export class TableNode extends Node implements CopyAble {
     public truncateTable() {
 
         Util.confirm(`Are you want to clear table ${this.table} all data ?`, async () => {
-            this.execute(`truncate table ${this.wrap(this.table)}`).then(() => {
+            const truncateSql = this.dbType == DatabaseType.SQLITE ? `DELETE FROM ${this.wrap(this.table)}` : `truncate table ${this.wrap(this.table)}`;
+            this.execute(truncateSql).then(() => {
                 vscode.window.showInformationMessage(`Clear table ${this.table} all data success!`);
             });
         })
@@ -127,7 +128,7 @@ export class TableNode extends Node implements CopyAble {
 
         ViewManager.createWebviewPanel({
             path: "app", title: "Design Table",
-            splitView: false, iconPath: Global.getExtPath("resources", "icon", "overview.svg"),
+            splitView: false, iconPath: Global.getExtPath("resources", "icon", "dropper.svg"),
             eventHandler: (handler => {
                 handler.on("init", () => {
                     handler.emit('route', 'design')
@@ -140,10 +141,9 @@ export class TableNode extends Node implements CopyAble {
                         }
                         return columnNode.column;
                     });
-                    const node = this.getByRegion(this.table) as TableNode || this
-                    handler.emit('design-data', { indexs: result, table: node.table, comment: node.description, columnList, primaryKey, dbType: node.dbType })
+                    handler.emit('design-data', { indexs: result, table: this.table, comment: this.meta.comment, columnList, primaryKey, dbType: this.dbType })
                 }).on("updateTable", async ({ newTableName, newComment }) => {
-                    const sql = this.dialect.updateTable({ table: this.table, newTableName, comment: this.description, newComment });
+                    const sql = this.dialect.updateTable({ table: this.table, newTableName, comment: this.meta.comment, newComment });
                     await executeAndRefresh(sql, handler)
                     this.parent.setChildCache(null)
                     this.provider.reload(this.parent)
@@ -185,10 +185,7 @@ export class TableNode extends Node implements CopyAble {
 
     public getToolTipe(meta: TableMeta): string {
         if (this.dbType == DatabaseType.MYSQL && meta.data_length) {
-            return `ROWS : ${meta.rows}
-AUTO_INCREMENT : ${meta.auto_increment}
-DATA_LENGTH : ${prettyBytes(parseInt(meta.data_length))}
-INDEX_LENGTH : ${prettyBytes(parseInt(meta.index_length))}
+            return `AUTO_INCREMENT : ${meta.auto_increment || 'null'}
 ROW_FORMAT : ${meta.row_format}
 `
         }
@@ -250,7 +247,10 @@ ROW_FORMAT : ${meta.row_format}
         const primaryKey = MockRunner.primaryKeyMap[this.uid];
         if (primaryKey != null) {
             const count = await this.execute(`select max(${primaryKey}) max from ${this.wrap(this.table)}`);
-            if (count && count[0]?.max) { return count[0].max }
+            if (count && count[0]?.max) {
+                const max = count[0].max;
+                return Number.isInteger(max) ? max : 0;
+            }
         }
 
 

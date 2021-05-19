@@ -49,7 +49,7 @@ export class QueryUnit {
 
         let recordHistory = queryOption.recordHistory;
         if (!sql) {
-            sql = this.getSqlFromEditor(connectionNode,queryOption.runAll);
+            sql = this.getSqlFromEditor(connectionNode, queryOption.runAll);
             recordHistory = true;
         }
         sql = sql.replace(/^\s*--.+/igm, '').trim();
@@ -99,9 +99,14 @@ export class QueryUnit {
                 }
 
                 // query result
-                if (Array.isArray(fields) && fields[0] != null && fields[0].name != undefined) {
-                    QueryPage.send({ connection: connectionNode, type: MessageType.DATA, queryOption, res: { sql, costTime, data, fields, total, pageSize: Global.getConfig(ConfigKey.DEFAULT_LIMIT) } as DataResponse });
-                    return;
+                if (Array.isArray(fields)) {
+                    const isQuery = fields[0] != null && fields[0].name != undefined;
+                    const isSqliteEmptyQuery = fields.length == 0 && sql.match(/\bselect\b/i);
+                    const isMongoEmptyQuery = fields.length == 0 && sql.match(/\.collection\b/i);
+                    if (isQuery || isSqliteEmptyQuery || isMongoEmptyQuery) {
+                        QueryPage.send({ connection: connectionNode, type: MessageType.DATA, queryOption, res: { sql, costTime, data, fields, total, pageSize: Global.getConfig(ConfigKey.DEFAULT_LIMIT) } as DataResponse });
+                        return;
+                    }
                 }
 
                 if (Array.isArray(data)) {
@@ -115,7 +120,7 @@ export class QueryUnit {
                     }
                 }
 
-                QueryPage.send({ connection: connectionNode, type: MessageType.MESSAGE_BLOCK, queryOption, res: { sql, costTime } as DMLResponse });
+                QueryPage.send({ connection: connectionNode, type: MessageType.MESSAGE_BLOCK, queryOption, res: { sql, costTime, isInsert: sql.match(/\binsert\b/i) != null } as DMLResponse });
 
             });
         } catch (error) {
@@ -145,13 +150,13 @@ export class QueryUnit {
 
     private static batchPattern = /\s+(TRIGGER|PROCEDURE|FUNCTION)\s+/ig;
 
-    private static getSqlFromEditor(connectionNode: Node,runAll:boolean): string {
+    private static getSqlFromEditor(connectionNode: Node, runAll: boolean): string {
         if (!vscode.window.activeTextEditor) {
             throw new Error("No SQL file selected!");
 
         }
         const activeTextEditor = vscode.window.activeTextEditor;
-        if(runAll){
+        if (runAll) {
             return activeTextEditor.document.getText()
         }
 
